@@ -1,0 +1,367 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ─── AUTH ─────────────────────────────────────────────────────────────────────
+
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String    @unique
+  emailVerified DateTime?
+  image         String?
+  password      String?
+  role          Role      @default(CUSTOMER)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  accounts  Account[]
+  sessions  Session[]
+  orders    Order[]
+  cart      Cart?
+  addresses Address[]
+
+  @@map("users")
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@map("accounts")
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("sessions")
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+  @@map("verification_tokens")
+}
+
+enum Role {
+  ADMIN
+  CUSTOMER
+}
+
+// ─── CATALOG ──────────────────────────────────────────────────────────────────
+
+model Category {
+  id          String   @id @default(cuid())
+  name        String
+  slug        String   @unique
+  description String?
+  image       String?
+  publicId    String?
+  order       Int      @default(0)
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  parentId String?
+  parent   Category?  @relation("CategoryTree", fields: [parentId], references: [id])
+  children Category[] @relation("CategoryTree")
+  products Product[]
+
+  @@map("categories")
+}
+
+model Product {
+  id           String   @id @default(cuid())
+  name         String
+  slug         String   @unique
+  description  String?  @db.Text
+  price        Decimal  @db.Decimal(10, 2)
+  comparePrice Decimal? @db.Decimal(10, 2)
+  cost         Decimal? @db.Decimal(10, 2)
+  sku          String?  @unique
+  stock        Int      @default(0)
+  trackStock   Boolean  @default(true)
+  active       Boolean  @default(true)
+  featured     Boolean  @default(false)
+  weight       Decimal? @db.Decimal(8, 3)
+
+  metaTitle       String?
+  metaDescription String?
+
+  categoryId String
+  category   Category @relation(fields: [categoryId], references: [id])
+
+  images     ProductImage[]
+  variants   ProductVariant[]
+  orderItems OrderItem[]
+  cartItems  CartItem[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("products")
+}
+
+model ProductImage {
+  id        String  @id @default(cuid())
+  url       String
+  publicId  String?
+  alt       String?
+  order     Int     @default(0)
+  productId String
+
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@map("product_images")
+}
+
+model ProductVariant {
+  id        String   @id @default(cuid())
+  name      String
+  value     String
+  price     Decimal? @db.Decimal(10, 2)
+  stock     Int      @default(0)
+  sku       String?
+  productId String
+
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@map("product_variants")
+}
+
+// ─── CART ─────────────────────────────────────────────────────────────────────
+
+model Cart {
+  id        String   @id @default(cuid())
+  userId    String?  @unique
+  sessionId String?  @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user  User?      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  items CartItem[]
+
+  @@map("carts")
+}
+
+model CartItem {
+  id        String  @id @default(cuid())
+  cartId    String
+  productId String
+  variantId String?
+  quantity  Int     @default(1)
+
+  cart    Cart    @relation(fields: [cartId], references: [id], onDelete: Cascade)
+  product Product @relation(fields: [productId], references: [id])
+
+  @@unique([cartId, productId, variantId])
+  @@map("cart_items")
+}
+
+// ─── ORDERS ───────────────────────────────────────────────────────────────────
+
+model Order {
+  id            String        @id @default(cuid())
+  number        Int           @unique @default(autoincrement())
+  status        OrderStatus   @default(PENDING)
+  paymentStatus PaymentStatus @default(PENDING)
+  paymentMethod String?
+  paymentRef    String?
+
+  subtotal Decimal @db.Decimal(10, 2)
+  shipping Decimal @db.Decimal(10, 2) @default(0)
+  discount Decimal @db.Decimal(10, 2) @default(0)
+  total    Decimal @db.Decimal(10, 2)
+
+  couponCode String?
+  notes      String?
+
+  shippingName    String
+  shippingPhone   String?
+  shippingAddress String
+  shippingCity    String
+  shippingState   String
+  shippingZip     String
+  shippingCountry String  @default("AR")
+  shippingMethod  String?
+  trackingNumber  String?
+
+  userId String?
+  user   User?       @relation(fields: [userId], references: [id])
+  items  OrderItem[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("orders")
+}
+
+model OrderItem {
+  id        String  @id @default(cuid())
+  orderId   String
+  productId String
+  name      String
+  image     String?
+  variant   String?
+  price     Decimal @db.Decimal(10, 2)
+  quantity  Int
+
+  order   Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product Product @relation(fields: [productId], references: [id])
+
+  @@map("order_items")
+}
+
+enum OrderStatus {
+  PENDING
+  CONFIRMED
+  PROCESSING
+  SHIPPED
+  DELIVERED
+  CANCELLED
+  REFUNDED
+}
+
+enum PaymentStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  REFUNDED
+  SIMULATED
+}
+
+// ─── ADDRESSES ────────────────────────────────────────────────────────────────
+
+model Address {
+  id        String  @id @default(cuid())
+  userId    String
+  name      String
+  phone     String?
+  address   String
+  city      String
+  state     String
+  zip       String
+  country   String  @default("AR")
+  isDefault Boolean @default(false)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("addresses")
+}
+
+// ─── SHIPPING ─────────────────────────────────────────────────────────────────
+
+model ShippingZone {
+  id        String   @id @default(cuid())
+  name      String
+  provinces String[]
+  active    Boolean  @default(true)
+
+  rates ShippingRate[]
+
+  @@map("shipping_zones")
+}
+
+model ShippingRate {
+  id             String   @id @default(cuid())
+  name           String
+  price          Decimal  @db.Decimal(10, 2)
+  minWeight      Decimal? @db.Decimal(8, 3)
+  maxWeight      Decimal? @db.Decimal(8, 3)
+  freeAboveOrder Decimal? @db.Decimal(10, 2)
+  estimatedDays  String?
+  zoneId         String
+
+  zone ShippingZone @relation(fields: [zoneId], references: [id], onDelete: Cascade)
+
+  @@map("shipping_rates")
+}
+
+// ─── DISCOUNTS ────────────────────────────────────────────────────────────────
+
+model Coupon {
+  id        String       @id @default(cuid())
+  code      String       @unique
+  type      DiscountType
+  value     Decimal      @db.Decimal(10, 2)
+  minOrder  Decimal?     @db.Decimal(10, 2)
+  maxUses   Int?
+  usedCount Int          @default(0)
+  active    Boolean      @default(true)
+  expiresAt DateTime?
+  createdAt DateTime     @default(now())
+
+  @@map("coupons")
+}
+
+enum DiscountType {
+  PERCENTAGE
+  FIXED
+}
+
+// ─── CONTENT ──────────────────────────────────────────────────────────────────
+
+model Banner {
+  id       String         @id @default(cuid())
+  title    String?
+  subtitle String?
+  image    String
+  publicId String?
+  link     String?
+  order    Int            @default(0)
+  active   Boolean        @default(true)
+  position BannerPosition @default(HOME_HERO)
+
+  @@map("banners")
+}
+
+enum BannerPosition {
+  HOME_HERO
+  HOME_SECONDARY
+}
+
+model SiteSettings {
+  id              String   @id @default("singleton")
+  storeName       String   @default("Mi Tienda")
+  logo            String?
+  logoPublicId    String?
+  primaryColor    String   @default("#C49A62")
+  email           String?
+  phone           String?
+  address         String?
+  instagram       String?
+  facebook        String?
+  whatsapp        String?
+  freeShippingMin Decimal? @db.Decimal(10, 2)
+  metaTitle       String?
+  metaDescription String?
+  updatedAt       DateTime @updatedAt
+
+  @@map("site_settings")
+}

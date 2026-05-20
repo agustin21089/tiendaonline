@@ -1,0 +1,156 @@
+"use server";
+
+import { prisma } from "@/lib/prisma";
+import { slugify } from "@/lib/utils";
+import { revalidatePath } from "next/cache";
+import { z } from "zod";
+
+const productSchema = z.object({
+  name: z.string().min(1),
+  slug: z.string().optional(),
+  description: z.string().optional(),
+  price: z.coerce.number().positive(),
+  comparePrice: z.coerce.number().optional(),
+  cost: z.coerce.number().optional(),
+  sku: z.string().optional(),
+  stock: z.coerce.number().int().min(0).default(0),
+  trackStock: z.boolean().default(true),
+  active: z.boolean().default(true),
+  featured: z.boolean().default(false),
+  weight: z.coerce.number().optional(),
+  categoryId: z.string().min(1),
+  metaTitle: z.string().optional(),
+  metaDescription: z.string().optional(),
+});
+
+export type ProductFormData = z.infer<typeof productSchema>;
+
+export async function createProduct(
+  data: ProductFormData,
+  images: { url: string; publicId?: string; alt?: string }[],
+) {
+  const parsed = productSchema.parse(data);
+  const slug = parsed.slug || slugify(parsed.name);
+
+  const product = await prisma.product.create({
+    data: {
+      ...parsed,
+      slug,
+      comparePrice: parsed.comparePrice ?? null,
+      cost: parsed.cost ?? null,
+      sku: parsed.sku || null,
+      weight: parsed.weight ?? null,
+      images: {
+        create: images.map((img, i) => ({ ...img, order: i })),
+      },
+    },
+  });
+
+  revalidatePath("/admin/productos");
+  revalidatePath("/");
+  return product;
+}
+
+export async function updateProduct(
+  id: string,
+  data: ProductFormData,
+  images: { url: string; publicId?: string; alt?: string }[],
+) {
+  const parsed = productSchema.parse(data);
+  const slug = parsed.slug || slugify(parsed.name);
+
+  await prisma.$transaction([
+    prisma.productImage.deleteMany({ where: { productId: id } }),
+    prisma.product.update({
+      where: { id },
+      data: {
+        ...parsed,
+        slug,
+        comparePrice: parsed.comparePrice ?? null,
+        cost: parsed.cost ?? null,
+        sku: parsed.sku || null,
+        weight: parsed.weight ?? null,
+        images: {
+          create: images.map((img, i) => ({ ...img, order: i })),
+        },
+      },
+    }),
+  ]);
+
+  revalidatePath("/admin/productos");
+  revalidatePath("/");
+}
+
+export async function deleteProduct(id: string) {
+  await prisma.product.delete({ where: { id } });
+  revalidatePath("/admin/productos");
+  revalidatePath("/");
+}
+
+export async function toggleProductActive(id: string, active: boolean) {
+  await prisma.product.update({ where: { id }, data: { active } });
+  revalidatePath("/admin/productos");
+}
+
+// ─── ACTUALIZACIÓN MASIVA DE PRECIOS ────────────────────────────────────────
+
+const bulkPriceSchema = z.object({
+  type: z.enum(["PERCENTAGE", "FIXED"]),
+  value: z.coerce.number(),
+  operation: z.enum(["INCREASE", "DECREASE"]),
+  categoryId: z.string().optional(),
+  applyToComparePrice: z.boolean().default(false),
+});
+
+export type BulkPriceData = z.infer<typeof bulkPriceSchema>;
+
+export async function previewBulkPrice(data: BulkPriceData) {
+  const parsed = bulkPriceSchema.parse(data);
+  const where = parsed.categoryId ? { categoryId: parsed.categoryId } : {};
+
+  const products = await prisma.product.findMany({
+    where,
+    select: { id: true, name: true, price: true, comparePrice: true },
+    take: 10,
+  });
+
+  return products.map((p) => ({
+    id: p.id,
+    name: p.name,
+    oldPrice: Number(p.price),
+    newPrice: calcNewPrice(Number(p.price), parsed),
+  }));
+}
+
+export async function applyBulkPrice(data: BulkPriceData) {
+  const parsed = bulkPriceSchema.parse(data);
+  const where = parsed.categoryId ? { categoryId: parsed.categoryId } : {};
+
+  const products = await prisma.product.findMany({ where, select: { id: true, price: true, comparePrice: true } });
+
+  await Promise.all(
+    products.map((p) =>
+      prisma.product.update({
+        where: { id: p.id },
+        data: {
+          price: calcNewPrice(Number(p.price), parsed),
+          ...(parsed.applyToComparePrice && p.comparePrice
+            ? { comparePrice: calcNewPrice(Number(p.comparePrice), parsed) }
+            : {}),
+        },
+      }),
+    ),
+  );
+
+  revalidatePath("/admin/productos");
+  revalidatePath("/");
+}
+
+function calcNewPrice(
+  current: number,
+  opts: { type: "PERCENTAGE" | "FIXED"; value: number; operation: "INCREASE" | "DECREASE" },
+): number {
+  let delta = opts.type === "PERCENTAGE" ? (current * opts.value) / 100 : opts.value;
+  const result = opts.operation === "INCREASE" ? current + delta : current - delta;
+  return Math.max(0, Math.round(result * 100) / 100);
+}

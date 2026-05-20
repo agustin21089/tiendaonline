@@ -1,26 +1,43 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
+@theme {
+  /* Paleta arena */
+  --color-arena-50: #FAF7F2;
+  --color-arena-100: #F5EFE4;
+  --color-arena-200: #EAD9C0;
+  --color-arena-300: #D9BD95;
+  --color-arena-400: #C49A62;
+  --color-arena-500: #B07D45;
+  --color-arena-600: #8C5F30;
+  --color-arena-700: #6B4422;
+  --color-arena-800: #4A2E16;
+  --color-arena-900: #2D1A0A;
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
+  /* Neutros cálidos */
+  --color-warm-50: #FAFAF8;
+  --color-warm-100: #F5F5F0;
+  --color-warm-200: #E8E8E0;
+  --color-warm-300: #D4D4C8;
+  --color-warm-400: #A8A898;
+  --color-warm-500: #787868;
+  --color-warm-600: #585848;
+  --color-warm-700: #3C3C30;
+  --color-warm-800: #242418;
+  --color-warm-900: #141410;
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  /* Fuentes */
+  --font-display: var(--font-cormorant), Georgia, serif;
+  --font-sans: var(--font-inter), system-ui, sans-serif;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background-color: var(--color-arena-50);
+  color: var(--color-warm-800);
+  font-family: var(--font-sans);
 }
+
+/* Scrollbar arena */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: var(--color-arena-100); }
+::-webkit-scrollbar-thumb { background: var(--color-arena-300); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--color-arena-400); }
