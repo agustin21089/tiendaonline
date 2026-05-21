@@ -34,7 +34,7 @@ export function AdminSidebar() {
   const pathname = usePathname();
 
   return (
-    <aside className="w-60 shrink-0 bg-warm-900 text-warm-100 flex flex-col min-h-screen">
+    <aside className="w-60 shrink-0 bg-warm-900 text-warm-100 flex flex-col h-full">
       {/* Logo */}
       <div className="px-6 py-5 border-b border-warm-700">
         <Link href="/admin" className="flex items-center gap-2.5">

@@ -27,7 +27,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="es" className={`${cormorant.variable} ${inter.variable} h-full`}>
+    <html lang="es" className={`${cormorant.variable} ${inter.variable} h-full`} suppressHydrationWarning>
       <head>
         <ThemeStyle />
       </head>
