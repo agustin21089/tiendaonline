@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useEffect } from "react";
+import { useActionState, useEffect, useRef } from "react";
 import { useFormStatus } from "react-dom";
 import { useSession } from "next-auth/react";
 import { updateProfile, type ProfileState } from "../actions";
@@ -39,13 +39,24 @@ export default function PerfilPage() {
   const user = session?.user as ExtendedUser | undefined;
   const [state, formAction] = useActionState<ProfileState, FormData>(updateProfile, {});
 
+  // Use a ref to track which state object we already handled.
+  // This prevents the effect from re-firing when `update` (a new function
+  // reference each render) changes, which would cause infinite toasts.
+  const handledState = useRef<ProfileState | null>(null);
+
   useEffect(() => {
+    if (state === handledState.current) return; // already handled this state
+    handledState.current = state;
+
     if (state.success) {
       toast.success("Perfil actualizado");
-      update(); // refresh session
+      update(); // refresh session so the header/avatar picks up new name
     }
-    if (state.error) toast.error(state.error);
-  }, [state, update]);
+    if (state.error) {
+      toast.error(state.error);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state]);
 
   return (
     <div className="space-y-6">

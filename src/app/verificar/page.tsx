@@ -17,7 +17,17 @@ function VerificarContent() {
   const [loading, setLoading] = useState(false);
   const [resending, setResending] = useState(false);
   const [verified, setVerified] = useState(false);
+  const [autoSent, setAutoSent] = useState(false);
   const inputs = useRef<(HTMLInputElement | null)[]>([]);
+
+  // Auto-send code when the page first loads (ensures code always arrives
+  // even if the registration email failed silently)
+  useEffect(() => {
+    if (!email || autoSent) return;
+    setAutoSent(true);
+    resendVerification(email).catch(() => {/* silent */});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [email]);
 
   // Auto-submit when all 6 digits filled
   useEffect(() => {

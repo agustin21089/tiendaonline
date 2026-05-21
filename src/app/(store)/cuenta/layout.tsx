@@ -1,4 +1,5 @@
 import { auth } from "@/lib/auth";
+import { prisma } from "@/lib/prisma";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { User, ShoppingBag, LogOut } from "lucide-react";
@@ -9,8 +10,14 @@ export default async function CuentaLayout({ children }: { children: React.React
   if (!session?.user) redirect("/login?callbackUrl=/cuenta");
 
   const user = session.user;
-  const unverified = !(user as { emailVerified?: Date | null }).emailVerified &&
-    !(user as { image?: string }).image; // Google users are pre-verified
+
+  // Always check emailVerified from DB — the JWT token doesn't include it,
+  // so relying on session.user.emailVerified always yields undefined (= always "unverified")
+  const dbUser = await prisma.user.findUnique({
+    where: { id: user.id as string },
+    select: { emailVerified: true, image: true },
+  });
+  const unverified = !dbUser?.emailVerified && !dbUser?.image; // Google users have image = pre-verified
 
   return (
     <div className="max-w-5xl mx-auto px-4 py-10">

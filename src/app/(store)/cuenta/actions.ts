@@ -2,7 +2,6 @@
 
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
-import { revalidatePath } from "next/cache";
 
 export type ProfileState = { error?: string; success?: boolean };
 
@@ -29,6 +28,8 @@ export async function updateProfile(
     },
   });
 
-  revalidatePath("/cuenta/perfil");
+  // Don't call revalidatePath here — it causes a server re-render that
+  // remounts the client component and resets the uncontrolled form inputs.
+  // The session.update() call on the client is sufficient to refresh data.
   return { success: true };
 }
