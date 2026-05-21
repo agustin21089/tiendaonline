@@ -116,19 +116,35 @@ export function BannerSlider({ banners }: { banners: Banner[] }) {
             <ChevronRight className="w-5 h-5" />
           </button>
 
-          {/* Dot indicators */}
+          {/* Dot indicators with animated progress on active dot */}
           <div className="absolute bottom-6 right-8 flex items-center gap-2">
             {banners.map((_, i) => (
               <button
                 key={i}
-                onClick={() => setCurrent(i)}
+                onClick={() => { setCurrent(i); }}
                 aria-label={`Ir al banner ${i + 1}`}
-                className={`h-2 rounded-full transition-all duration-300 ${
-                  i === current ? "bg-white w-6" : "bg-white/50 w-2"
+                className={`h-2 rounded-full transition-all duration-300 overflow-hidden relative ${
+                  i === current ? "bg-white/40 w-6" : "bg-white/50 w-2"
                 }`}
-              />
+              >
+                {i === current && !paused && (
+                  <span
+                    key={current}
+                    className="absolute inset-y-0 left-0 bg-white rounded-full"
+                    style={{
+                      animation: "slideProgress 5s linear forwards",
+                    }}
+                  />
+                )}
+              </button>
             ))}
           </div>
+          <style>{`
+            @keyframes slideProgress {
+              from { width: 0% }
+              to   { width: 100% }
+            }
+          `}</style>
         </>
       )}
     </section>

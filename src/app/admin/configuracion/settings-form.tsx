@@ -1,10 +1,18 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
 import { useFormStatus } from "react-dom";
 import { Button } from "@/components/ui/button";
-import { Loader2 } from "lucide-react";
+import { Loader2, Eye, EyeOff, RotateCcw } from "lucide-react";
 import type { SiteSettings } from "@/generated/prisma/client";
+
+// Serialised version safe to pass from Server → Client Component.
+// `freeShippingMin` is converted from Prisma Decimal to plain number | null.
+type SerializedSettings = Omit<SiteSettings, "freeShippingMin"> & {
+  freeShippingMin: number | null;
+};
+import { DEFAULT_ORDER_TEMPLATE, DEFAULT_VERIFY_TEMPLATE } from "@/lib/email-templates";
+import { AppearanceSection } from "./appearance-section";
 
 function SaveButton() {
   const { pending } = useFormStatus();
@@ -22,11 +30,105 @@ const labelClass = "block text-sm font-medium text-warm-700 mb-1";
 
 type Action = (prevState: { error?: string }, formData: FormData) => Promise<{ error?: string }>;
 
+/** Replace {{variable}} placeholders with sample values for preview */
+function renderPreview(html: string, vars: Record<string, string>): string {
+  return html.replace(/\{\{(\w+)\}\}/g, (_, key: string) => vars[key] ?? `<span style="background:#fef3c7;padding:0 2px">{{${key}}}</span>`);
+}
+
+const ORDER_SAMPLE = { name: "María García", orderNumber: "1042", total: "$ 84.500" };
+const VERIFY_SAMPLE = { name: "María García", code: "847291" };
+
+function TemplateEditor({
+  name,
+  label,
+  defaultValue,
+  fallback,
+  variables,
+  sampleVars,
+}: {
+  name: string;
+  label: string;
+  defaultValue: string | null | undefined;
+  fallback: string;
+  variables: string[];
+  sampleVars: Record<string, string>;
+}) {
+  const [value, setValue] = useState(defaultValue ?? "");
+  const [preview, setPreview] = useState(false);
+
+  const html = value || fallback;
+  const previewHtml = renderPreview(html, sampleVars);
+
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center justify-between">
+        <label className={labelClass}>{label}</label>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setValue("")}
+            title="Restaurar plantilla por defecto"
+            className="flex items-center gap-1 text-xs text-warm-400 hover:text-warm-600 transition-colors"
+          >
+            <RotateCcw className="w-3 h-3" />
+            Restaurar
+          </button>
+          <button
+            type="button"
+            onClick={() => setPreview((v) => !v)}
+            className="flex items-center gap-1 text-xs text-arena-600 hover:text-arena-800 transition-colors"
+          >
+            {preview ? <EyeOff className="w-3 h-3" /> : <Eye className="w-3 h-3" />}
+            {preview ? "Editar" : "Vista previa"}
+          </button>
+        </div>
+      </div>
+
+      {/* Variable reference chips */}
+      <div className="flex flex-wrap gap-1.5">
+        {variables.map((v) => (
+          <code
+            key={v}
+            className="text-xs bg-arena-50 border border-arena-200 text-arena-700 rounded px-1.5 py-0.5 font-mono cursor-pointer hover:bg-arena-100 select-all"
+            title="Hacé clic para copiar"
+            onClick={() => navigator.clipboard?.writeText(`{{${v}}}`).catch(() => {})}
+          >
+            {`{{${v}}}`}
+          </code>
+        ))}
+        <span className="text-xs text-warm-400 self-center ml-1">Hacé clic para copiar</span>
+      </div>
+
+      {preview ? (
+        <iframe
+          srcDoc={previewHtml}
+          className="w-full border border-arena-200 rounded-lg bg-white"
+          style={{ height: 260 }}
+          sandbox="allow-same-origin"
+          title={`Vista previa ${label}`}
+        />
+      ) : (
+        <textarea
+          name={name}
+          rows={8}
+          value={value}
+          onChange={(e) => setValue(e.target.value)}
+          placeholder={fallback}
+          className="w-full px-3 py-2 rounded-lg border border-arena-200 text-xs text-warm-900 bg-white focus:outline-none focus:ring-2 focus:ring-arena-400 resize-y font-mono placeholder:text-warm-300"
+        />
+      )}
+      <p className="text-xs text-warm-400">
+        Dejá vacío para usar la plantilla predeterminada. Usá HTML libre con los <code className="font-mono">{"{{variables}}"}</code> indicadas.
+      </p>
+    </div>
+  );
+}
+
 export function SettingsForm({
   settings,
   action,
 }: {
-  settings: SiteSettings | null;
+  settings: SerializedSettings | null;
   action: Action;
 }) {
   const [state, formAction] = useActionState(action, {});
@@ -152,6 +254,15 @@ export function SettingsForm({
         </div>
       </section>
 
+      {/* Apariencia */}
+      <AppearanceSection
+        primaryColor={settings?.primaryColor ?? "#B07D45"}
+        neutralColor={settings?.neutralColor ?? "#787868"}
+        darkMode={settings?.darkMode ?? false}
+        logo={settings?.logo}
+        logoPublicId={settings?.logoPublicId}
+      />
+
       {/* Envíos */}
       <section className="bg-white rounded-xl border border-arena-200 p-6 space-y-4">
         <h2 className="font-display text-base font-semibold text-warm-800">Envíos</h2>
@@ -168,6 +279,54 @@ export function SettingsForm({
           />
           <p className="text-xs text-warm-400 mt-1">Dejá vacío para no mostrar envío gratis</p>
         </div>
+      </section>
+
+      {/* Notificaciones */}
+      <section className="bg-white rounded-xl border border-arena-200 p-6 space-y-4">
+        <h2 className="font-display text-base font-semibold text-warm-800">Notificaciones al administrador</h2>
+        <div>
+          <label className={labelClass}>WhatsApp admin (número E.164 sin +)</label>
+          <input
+            type="text"
+            name="adminWhatsapp"
+            defaultValue={settings?.adminWhatsapp ?? ""}
+            className={inputClass}
+            placeholder="5491112345678"
+          />
+          <p className="text-xs text-warm-400 mt-1">
+            Si está configurado Twilio, recibirás un WhatsApp por cada nueva orden. Formato: código de país + número sin espacios.
+          </p>
+        </div>
+      </section>
+
+      {/* Email templates */}
+      <section className="bg-white rounded-xl border border-arena-200 p-6 space-y-6">
+        <div>
+          <h2 className="font-display text-base font-semibold text-warm-800">Plantillas de email</h2>
+          <p className="text-xs text-warm-500 mt-0.5">
+            Personalizá los correos que reciben tus clientes. Usá HTML libre o dejá vacío para la plantilla predeterminada.
+          </p>
+        </div>
+
+        <TemplateEditor
+          name="emailOrderTemplate"
+          label="Confirmación de orden"
+          defaultValue={settings?.emailOrderTemplate}
+          fallback={DEFAULT_ORDER_TEMPLATE}
+          variables={["name", "orderNumber", "total"]}
+          sampleVars={ORDER_SAMPLE}
+        />
+
+        <hr className="border-arena-100" />
+
+        <TemplateEditor
+          name="emailVerifyTemplate"
+          label="Verificación de cuenta"
+          defaultValue={settings?.emailVerifyTemplate}
+          fallback={DEFAULT_VERIFY_TEMPLATE}
+          variables={["name", "code"]}
+          sampleVars={VERIFY_SAMPLE}
+        />
       </section>
 
       <div className="flex justify-end">

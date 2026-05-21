@@ -126,15 +126,34 @@ model Product {
   categoryId String
   category   Category @relation(fields: [categoryId], references: [id])
 
-  images     ProductImage[]
-  variants   ProductVariant[]
-  orderItems OrderItem[]
-  cartItems  CartItem[]
+  images       ProductImage[]
+  variants     ProductVariant[]
+  orderItems   OrderItem[]
+  cartItems    CartItem[]
+  reservations StockReservation[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@map("products")
+}
+
+// ─── STOCK RESERVATIONS ───────────────────────────────────────────────────────
+
+model StockReservation {
+  id        String   @id @default(cuid())
+  productId String
+  variantId String?
+  quantity  Int
+  sessionId String
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@index([sessionId])
+  @@index([productId])
+  @@map("stock_reservations")
 }
 
 model ProductImage {
@@ -360,7 +379,9 @@ model SiteSettings {
   storeName       String   @default("Mi Tienda")
   logo            String?
   logoPublicId    String?
-  primaryColor    String   @default("#C49A62")
+  primaryColor    String   @default("#B07D45")
+  neutralColor    String   @default("#787868")
+  darkMode        Boolean  @default(false)
   email           String?
   phone           String?
   address         String?
@@ -370,7 +391,15 @@ model SiteSettings {
   freeShippingMin Decimal? @db.Decimal(10, 2)
   metaTitle       String?
   metaDescription String?
-  updatedAt       DateTime @updatedAt
+
+  // Transactional email HTML templates (variables: {{name}}, {{orderNumber}}, {{total}})
+  emailOrderTemplate  String? @db.Text
+  emailVerifyTemplate String? @db.Text
+
+  // Admin WhatsApp notification number (e.g. 5491112345678)
+  adminWhatsapp String?
+
+  updatedAt DateTime @updatedAt
 
   @@map("site_settings")
 }

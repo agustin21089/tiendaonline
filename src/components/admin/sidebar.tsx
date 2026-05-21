@@ -14,6 +14,7 @@ import {
   Image,
   Settings,
   Store,
+  BarChart3,
 } from "lucide-react";
 
 const navItems = [
@@ -25,6 +26,7 @@ const navItems = [
   { href: "/admin/envios", label: "Envíos", icon: Truck },
   { href: "/admin/cupones", label: "Cupones", icon: Ticket },
   { href: "/admin/banners", label: "Banners", icon: Image },
+  { href: "/admin/reportes", label: "Reportes", icon: BarChart3 },
   { href: "/admin/configuracion", label: "Configuración", icon: Settings },
 ];
 
@@ -32,7 +34,7 @@ export function AdminSidebar() {
   const pathname = usePathname();
 
   return (
-    <aside className="w-60 shrink-0 bg-warm-900 text-warm-100 flex flex-col min-h-screen">
+    <aside className="w-60 shrink-0 bg-warm-900 text-warm-100 flex flex-col h-full">
       {/* Logo */}
       <div className="px-6 py-5 border-b border-warm-700">
         <Link href="/admin" className="flex items-center gap-2.5">

@@ -3,6 +3,7 @@ import { Cormorant_Garamond, Inter } from "next/font/google";
 import "./globals.css";
 import { Toaster } from "sonner";
 import { Providers } from "@/components/providers";
+import { ThemeStyle } from "@/components/theme-style";
 
 const cormorant = Cormorant_Garamond({
   variable: "--font-cormorant",
@@ -26,8 +27,9 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="es" className={`${cormorant.variable} ${inter.variable} h-full`}>
+    <html lang="es" className={`${cormorant.variable} ${inter.variable} h-full`} suppressHydrationWarning>
       <body className="min-h-full flex flex-col antialiased">
+        <ThemeStyle />
         <Providers>
           {children}
           <Toaster position="top-right" richColors />

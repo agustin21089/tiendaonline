@@ -183,3 +183,55 @@ function calcNewPrice(
   const result = opts.operation === "INCREASE" ? current + delta : current - delta;
   return Math.max(0, Math.round(result * 100) / 100);
 }
+
+// ─── ACTUALIZACIÓN DE STOCK POR CSV ──────────────────────────────────────────
+
+export type StockCsvRow = { identifier: string; stock: number };
+export type StockCsvResult = {
+  updated: number;
+  errors: { row: number; identifier: string; reason: string }[];
+};
+
+/**
+ * Accepts parsed CSV rows [{identifier, stock}] and updates each product.
+ * `identifier` can be SKU or product ID.
+ */
+export async function updateStockFromCsv(rows: StockCsvRow[]): Promise<StockCsvResult> {
+  const errors: StockCsvResult["errors"] = [];
+  let updated = 0;
+
+  // Collect all identifiers and batch-fetch
+  const skus = rows.map((r) => r.identifier);
+  const products = await prisma.product.findMany({
+    where: { OR: [{ sku: { in: skus } }, { id: { in: skus } }] },
+    select: { id: true, sku: true },
+  });
+
+  const byId = new Map(products.map((p) => [p.id, p.id]));
+  const bySku = new Map(products.filter((p) => p.sku).map((p) => [p.sku!, p.id]));
+
+  for (let i = 0; i < rows.length; i++) {
+    const row = rows[i];
+    const productId = byId.get(row.identifier) ?? bySku.get(row.identifier);
+
+    if (!productId) {
+      errors.push({ row: i + 1, identifier: row.identifier, reason: "Producto no encontrado" });
+      continue;
+    }
+
+    if (!Number.isInteger(row.stock) || row.stock < 0) {
+      errors.push({ row: i + 1, identifier: row.identifier, reason: "Stock debe ser un entero ≥ 0" });
+      continue;
+    }
+
+    try {
+      await prisma.product.update({ where: { id: productId }, data: { stock: row.stock } });
+      updated++;
+    } catch {
+      errors.push({ row: i + 1, identifier: row.identifier, reason: "Error al actualizar" });
+    }
+  }
+
+  revalidatePath("/admin/productos");
+  return { updated, errors };
+}

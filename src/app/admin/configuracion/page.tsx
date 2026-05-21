@@ -3,6 +3,8 @@ import { saveSettings } from "./actions";
 import { SettingsForm } from "./settings-form";
 import type { Metadata } from "next";
 
+export const dynamic = "force-dynamic";
+
 export const metadata: Metadata = { title: "Configuración" };
 
 export default async function ConfiguracionPage({
@@ -11,7 +13,13 @@ export default async function ConfiguracionPage({
   searchParams: Promise<{ ok?: string }>;
 }) {
   const params = await searchParams;
-  const settings = await prisma.siteSettings.findUnique({ where: { id: "singleton" } });
+  const raw = await prisma.siteSettings.findUnique({ where: { id: "singleton" } });
+
+  // Prisma returns Decimal objects which can't be passed to Client Components —
+  // convert to a plain-object representation before serialising over the wire.
+  const settings = raw
+    ? { ...raw, freeShippingMin: raw.freeShippingMin !== null ? Number(raw.freeShippingMin) : null }
+    : null;
 
   return (
     <div className="max-w-2xl space-y-6">
