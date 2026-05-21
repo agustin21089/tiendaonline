@@ -3,6 +3,7 @@ import { Cormorant_Garamond, Inter } from "next/font/google";
 import "./globals.css";
 import { Toaster } from "sonner";
 import { Providers } from "@/components/providers";
+import { ThemeStyle } from "@/components/theme-style";
 
 const cormorant = Cormorant_Garamond({
   variable: "--font-cormorant",
@@ -27,6 +28,9 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="es" className={`${cormorant.variable} ${inter.variable} h-full`}>
+      <head>
+        <ThemeStyle />
+      </head>
       <body className="min-h-full flex flex-col antialiased">
         <Providers>
           {children}

@@ -13,6 +13,13 @@ export async function saveSettings(prevState: { error?: string }, formData: Form
   const emailOrderTemplate = (formData.get("emailOrderTemplate") as string) || null;
   const emailVerifyTemplate = (formData.get("emailVerifyTemplate") as string) || null;
 
+  // Appearance
+  const primaryColor = (formData.get("primaryColor") as string) || "#B07D45";
+  const neutralColor = (formData.get("neutralColor") as string) || "#787868";
+  const darkMode = (formData.get("darkMode") as string) === "true";
+  const logo = (formData.get("logo") as string) || null;
+  const logoPublicId = (formData.get("logoPublicId") as string) || null;
+
   await prisma.siteSettings.upsert({
     where: { id: "singleton" },
     update: {
@@ -31,10 +38,18 @@ export async function saveSettings(prevState: { error?: string }, formData: Form
       adminWhatsapp: (formData.get("adminWhatsapp") as string) || null,
       emailOrderTemplate,
       emailVerifyTemplate,
+      primaryColor,
+      neutralColor,
+      darkMode,
+      logo,
+      logoPublicId,
     },
     create: {
       id: "singleton",
       storeName: storeName.trim(),
+      primaryColor,
+      neutralColor,
+      darkMode,
     },
   });
 

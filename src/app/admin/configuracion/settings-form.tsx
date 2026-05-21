@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Loader2, Eye, EyeOff, RotateCcw } from "lucide-react";
 import type { SiteSettings } from "@/generated/prisma/client";
 import { DEFAULT_ORDER_TEMPLATE, DEFAULT_VERIFY_TEMPLATE } from "@/lib/email-templates";
+import { AppearanceSection } from "./appearance-section";
 
 function SaveButton() {
   const { pending } = useFormStatus();
@@ -246,6 +247,15 @@ export function SettingsForm({
           </div>
         </div>
       </section>
+
+      {/* Apariencia */}
+      <AppearanceSection
+        primaryColor={settings?.primaryColor ?? "#B07D45"}
+        neutralColor={settings?.neutralColor ?? "#787868"}
+        darkMode={settings?.darkMode ?? false}
+        logo={settings?.logo}
+        logoPublicId={settings?.logoPublicId}
+      />
 
       {/* Envíos */}
       <section className="bg-white rounded-xl border border-arena-200 p-6 space-y-4">

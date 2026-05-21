@@ -379,7 +379,9 @@ model SiteSettings {
   storeName       String   @default("Mi Tienda")
   logo            String?
   logoPublicId    String?
-  primaryColor    String   @default("#C49A62")
+  primaryColor    String   @default("#B07D45")
+  neutralColor    String   @default("#787868")
+  darkMode        Boolean  @default(false)
   email           String?
   phone           String?
   address         String?

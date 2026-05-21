@@ -3,6 +3,8 @@ import { saveSettings } from "./actions";
 import { SettingsForm } from "./settings-form";
 import type { Metadata } from "next";
 
+export const dynamic = "force-dynamic";
+
 export const metadata: Metadata = { title: "Configuración" };
 
 export default async function ConfiguracionPage({

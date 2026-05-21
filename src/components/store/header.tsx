@@ -4,6 +4,7 @@ import { useCart } from "@/context/cart-context";
 import { CartDrawer } from "./cart-drawer";
 import { UserMenu } from "./user-menu";
 import Link from "next/link";
+import Image from "next/image";
 import { ShoppingBag, Menu, X, Search } from "lucide-react";
 import { useState } from "react";
 
@@ -12,9 +13,10 @@ type Category = { name: string; slug: string };
 interface Props {
   storeName: string;
   categories: Category[];
+  logoUrl?: string | null;
 }
 
-export function StoreHeader({ storeName, categories }: Props) {
+export function StoreHeader({ storeName, categories, logoUrl }: Props) {
   const { count, openCart } = useCart();
   const [mobileOpen, setMobileOpen] = useState(false);
 
@@ -24,11 +26,21 @@ export function StoreHeader({ storeName, categories }: Props) {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
             {/* Logo */}
-            <Link
-              href="/"
-              className="font-display text-xl font-semibold text-arena-700 shrink-0"
-            >
-              {storeName}
+            <Link href="/" className="shrink-0 flex items-center">
+              {logoUrl ? (
+                <Image
+                  src={logoUrl}
+                  alt={storeName}
+                  width={140}
+                  height={40}
+                  className="h-9 w-auto object-contain"
+                  unoptimized
+                />
+              ) : (
+                <span className="font-display text-xl font-semibold text-arena-700">
+                  {storeName}
+                </span>
+              )}
             </Link>
 
             {/* Nav desktop */}

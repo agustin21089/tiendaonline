@@ -19,13 +19,14 @@ async function getSiteData() {
 export default async function StoreLayout({ children }: { children: React.ReactNode }) {
   const { settings, categories } = await getSiteData();
   const storeName = settings?.storeName ?? "Mi Tienda";
+  const logoUrl = settings?.logo ?? null;
 
   const googleClientId = process.env.GOOGLE_CLIENT_ID ?? null;
 
   return (
     <CartProvider>
       {googleClientId && <GoogleOneTap clientId={googleClientId} />}
-      <StoreHeader storeName={storeName} categories={categories} />
+      <StoreHeader storeName={storeName} categories={categories} logoUrl={logoUrl} />
       <main className="flex-1">{children}</main>
       <StoreFooter
         storeName={storeName}
