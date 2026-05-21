@@ -3,6 +3,7 @@ import { formatPrice } from "@/lib/utils";
 import Image from "next/image";
 import Link from "next/link";
 import { AddToCartButton } from "@/components/store/add-to-cart-button";
+import { BannerSlider } from "@/components/store/banner-slider";
 
 export const dynamic = "force-dynamic";
 
@@ -11,7 +12,7 @@ async function getData() {
     prisma.banner.findMany({
       where: { active: true, position: "HOME_HERO" },
       orderBy: { order: "asc" },
-      take: 1,
+      take: 10,
     }),
     prisma.category.findMany({
       where: { active: true, parentId: null },
@@ -30,34 +31,11 @@ async function getData() {
 
 export default async function HomePage() {
   const { banners, categories, featuredProducts } = await getData();
-  const hero = banners[0];
 
   return (
     <div>
-      {/* Hero */}
-      <section className="relative h-[65vh] min-h-80 bg-arena-100 overflow-hidden">
-        {hero?.image ? (
-          <Image src={hero.image} alt={hero.title ?? "Banner"} fill className="object-cover" priority />
-        ) : (
-          <div className="absolute inset-0 bg-gradient-to-br from-arena-100 via-arena-200 to-arena-300" />
-        )}
-        <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-black/10 to-transparent" />
-        <div className="absolute bottom-0 left-0 p-8 md:p-16 max-w-2xl">
-          <h1 className="font-display text-4xl md:text-6xl font-light text-white leading-tight mb-3">
-            {hero?.title ?? "Decorá tu hogar con amor"}
-          </h1>
-          {hero?.subtitle && (
-            <p className="text-white/80 text-lg mb-5">{hero.subtitle}</p>
-          )}
-          <Link
-            href={hero?.link ?? "/categoria/living"}
-            className="inline-block px-7 py-3 bg-white text-arena-800 rounded-full text-sm font-medium
-              hover:bg-arena-50 transition-colors shadow-sm"
-          >
-            Ver colección →
-          </Link>
-        </div>
-      </section>
+      {/* Hero Slider */}
+      <BannerSlider banners={banners} />
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-14 space-y-16">
         {/* Categorías */}
@@ -102,7 +80,7 @@ export default async function HomePage() {
                 Productos destacados
               </h2>
               <Link
-                href="/productos"
+                href="/"
                 className="text-sm text-arena-600 hover:text-arena-700 font-medium transition-colors"
               >
                 Ver todos →
@@ -115,6 +93,29 @@ export default async function HomePage() {
             </div>
           </section>
         )}
+
+        {/* Banner secundario */}
+        <section className="rounded-3xl bg-arena-100 overflow-hidden">
+          <div className="px-8 py-12 md:px-16 md:py-16 flex flex-col md:flex-row items-center justify-between gap-6">
+            <div>
+              <p className="text-sm font-medium text-arena-600 uppercase tracking-widest mb-2">
+                Nueva colección
+              </p>
+              <h2 className="font-display text-3xl md:text-4xl font-light text-warm-900">
+                Dormitorio — Otoño 2025
+              </h2>
+              <p className="text-warm-500 mt-2 max-w-md">
+                Texturas suaves, colores tierra y materiales naturales para crear el refugio perfecto.
+              </p>
+            </div>
+            <Link
+              href="/categoria/dormitorio"
+              className="shrink-0 px-8 py-3 bg-warm-900 text-white rounded-full text-sm font-medium hover:bg-warm-700 transition-colors"
+            >
+              Explorar colección →
+            </Link>
+          </div>
+        </section>
       </div>
     </div>
   );

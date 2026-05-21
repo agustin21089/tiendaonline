@@ -25,9 +25,18 @@ const productSchema = z.object({
 
 export type ProductFormData = z.infer<typeof productSchema>;
 
+export type VariantInput = {
+  name: string;   // "Color" | "Tamaño"
+  value: string;  // "Rojo" | "Grande"
+  price?: number | null;
+  stock: number;
+  sku?: string | null; // hex for colors e.g. "#C0392B"
+};
+
 export async function createProduct(
   data: ProductFormData,
   images: { url: string; publicId?: string; alt?: string }[],
+  variants: VariantInput[] = [],
 ) {
   const parsed = productSchema.parse(data);
   const slug = parsed.slug || slugify(parsed.name);
@@ -43,6 +52,15 @@ export async function createProduct(
       images: {
         create: images.map((img, i) => ({ ...img, order: i })),
       },
+      variants: variants.length > 0 ? {
+        create: variants.map((v) => ({
+          name: v.name,
+          value: v.value,
+          price: v.price ?? null,
+          stock: v.stock,
+          sku: v.sku || null,
+        })),
+      } : undefined,
     },
   });
 
@@ -55,12 +73,14 @@ export async function updateProduct(
   id: string,
   data: ProductFormData,
   images: { url: string; publicId?: string; alt?: string }[],
+  variants: VariantInput[] = [],
 ) {
   const parsed = productSchema.parse(data);
   const slug = parsed.slug || slugify(parsed.name);
 
   await prisma.$transaction([
     prisma.productImage.deleteMany({ where: { productId: id } }),
+    prisma.productVariant.deleteMany({ where: { productId: id } }),
     prisma.product.update({
       where: { id },
       data: {
@@ -73,6 +93,15 @@ export async function updateProduct(
         images: {
           create: images.map((img, i) => ({ ...img, order: i })),
         },
+        variants: variants.length > 0 ? {
+          create: variants.map((v) => ({
+            name: v.name,
+            value: v.value,
+            price: v.price ?? null,
+            stock: v.stock,
+            sku: v.sku || null,
+          })),
+        } : undefined,
       },
     }),
   ]);

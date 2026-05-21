@@ -1,4 +1,5 @@
 import { CheckoutForm } from "./checkout-form";
+import { CheckoutLoginGate } from "@/components/store/checkout-login-gate";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import type { Metadata } from "next";
@@ -7,8 +8,17 @@ export const metadata: Metadata = {
   title: "Checkout",
 };
 
-export default async function CheckoutPage() {
-  const session = await auth();
+interface Props {
+  searchParams: Promise<{ guest?: string }>;
+}
+
+export default async function CheckoutPage({ searchParams }: Props) {
+  const [session, { guest }] = await Promise.all([auth(), searchParams]);
+
+  // Show login gate if not authenticated and not in guest mode
+  if (!session?.user && guest !== "1") {
+    return <CheckoutLoginGate />;
+  }
 
   let defaultValues: {
     name?: string;

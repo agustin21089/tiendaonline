@@ -28,6 +28,7 @@ export default async function ProductoPage({ params }: Props) {
     include: {
       images: { orderBy: { order: "asc" } },
       category: { include: { parent: { select: { name: true, slug: true } } } },
+      variants: { orderBy: [{ name: "asc" }, { value: "asc" }] },
     },
   });
   if (!product) notFound();
@@ -101,7 +102,7 @@ export default async function ProductoPage({ params }: Props) {
             )}
           </div>
 
-          {/* Acciones (cliente — selector de cantidad + agregar) */}
+          {/* Acciones (cliente — variantes + cantidad + agregar) */}
           <ProductActions
             product={{
               id: product.id,
@@ -111,6 +112,14 @@ export default async function ProductoPage({ params }: Props) {
               image: product.images[0]?.url ?? null,
               stock: product.stock,
             }}
+            variants={product.variants.map((v) => ({
+              id: v.id,
+              name: v.name,
+              value: v.value,
+              price: v.price ? Number(v.price) : null,
+              stock: v.stock,
+              sku: v.sku,
+            }))}
           />
 
           {/* Descripción */}
