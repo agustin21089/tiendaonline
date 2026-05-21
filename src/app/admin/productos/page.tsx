@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { ProductTable } from "./product-table";
 import { BulkPriceModal } from "./bulk-price-modal";
+import { StockCsvModal } from "./stock-csv-modal";
 
 interface Props {
   searchParams: Promise<{ q?: string; categoria?: string; stockBajo?: string; pagina?: string }>;
@@ -44,6 +45,7 @@ export default async function ProductosPage({ searchParams }: Props) {
           <p className="text-sm text-warm-500 mt-0.5">{total} productos</p>
         </div>
         <div className="flex gap-2">
+          <StockCsvModal />
           <BulkPriceModal categories={categories} />
           <a
             href="/admin/productos/nuevo"

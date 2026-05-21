@@ -80,8 +80,12 @@ export async function register(
     data: { identifier: parsed.data.email, token: code, expires },
   });
 
+  const settings = await prisma.siteSettings
+    .findUnique({ where: { id: "singleton" }, select: { emailVerifyTemplate: true } })
+    .catch(() => null);
+
   try {
-    await sendVerificationEmail(parsed.data.email, parsed.data.name, code);
+    await sendVerificationEmail(parsed.data.email, parsed.data.name, code, settings?.emailVerifyTemplate);
   } catch (e) {
     console.error("Error sending verification email:", e);
     // Don't block registration if email fails — user can request resend
@@ -103,8 +107,12 @@ export async function resendVerification(email: string): Promise<{ error?: strin
     data: { identifier: email, token: code, expires },
   });
 
+  const settings = await prisma.siteSettings
+    .findUnique({ where: { id: "singleton" }, select: { emailVerifyTemplate: true } })
+    .catch(() => null);
+
   try {
-    await sendVerificationEmail(email, user.name ?? "Usuario", code);
+    await sendVerificationEmail(email, user.name ?? "Usuario", code, settings?.emailVerifyTemplate);
   } catch {
     return { error: "No se pudo enviar el email. Revisá la configuración SMTP." };
   }

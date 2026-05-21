@@ -6,6 +6,11 @@ import { mpClient, Preference } from "@/lib/mp";
 import { auth } from "@/lib/auth";
 import { sendOrderConfirmationEmail } from "@/lib/email";
 import { calculateShipping, type ShippingResult } from "@/lib/shipping";
+import { reserveStock, releaseReservation, decrementStock } from "@/lib/stock-reservation";
+import { notifyAdminWhatsApp, buildNewOrderMessage } from "@/lib/whatsapp";
+
+// Re-export so CheckoutForm can call it as a server action
+export { reserveStock };
 
 export type CartItemInput = {
   productId: string;
@@ -159,6 +164,7 @@ export async function createOrder(
     // If invalid, ignore silently — don't block the order
   }
 
+  const reservationSessionId = (formData.get("reservationSessionId") as string) || null;
   const shipping = shippingPrice;
   const total = Math.max(0, subtotal - discount) + shipping;
 
@@ -209,6 +215,13 @@ export async function createOrder(
         })
         .catch((e: unknown) => console.error("Error incrementing coupon usage:", e));
     }
+
+    // Decrement product stock + release reservation (non-blocking)
+    const stockItems = validItems.map((i) => ({ productId: i.productId, quantity: i.quantity }));
+    decrementStock(stockItems).catch((e: unknown) => console.error("Error decrementing stock:", e));
+    if (reservationSessionId) {
+      releaseReservation(reservationSessionId).catch(() => {});
+    }
   } catch (e) {
     console.error("Error creating order:", e);
     return { error: "Error al crear el pedido. Por favor intentá de nuevo." };
@@ -216,12 +229,23 @@ export async function createOrder(
 
   const orderId = order.id;
 
+  // Load site settings once for email template + WhatsApp
+  const settings = await prisma.siteSettings
+    .findUnique({ where: { id: "singleton" }, select: { adminWhatsapp: true, emailOrderTemplate: true } })
+    .catch(() => null);
+
   // Send order confirmation email (non-blocking)
   if (email) {
-    sendOrderConfirmationEmail(email, name, order.number, subtotal).catch((e) =>
+    sendOrderConfirmationEmail(email, name, order.number, total, settings?.emailOrderTemplate).catch((e) =>
       console.error("Error sending order confirmation email:", e)
     );
   }
+
+  // Notify admin via WhatsApp (non-blocking)
+  const waMsg = buildNewOrderMessage(order.number, name, total, validItems.length, city);
+  notifyAdminWhatsApp(waMsg, settings?.adminWhatsapp).catch((e) =>
+    console.error("WhatsApp notification error:", e)
+  );
 
   if (paymentMethod === "mercadopago") {
     try {

@@ -10,6 +10,9 @@ export async function saveSettings(prevState: { error?: string }, formData: Form
     return { error: "El nombre de la tienda es obligatorio." };
   }
 
+  const emailOrderTemplate = (formData.get("emailOrderTemplate") as string) || null;
+  const emailVerifyTemplate = (formData.get("emailVerifyTemplate") as string) || null;
+
   await prisma.siteSettings.upsert({
     where: { id: "singleton" },
     update: {
@@ -25,6 +28,9 @@ export async function saveSettings(prevState: { error?: string }, formData: Form
         : null,
       metaTitle: (formData.get("metaTitle") as string) || null,
       metaDescription: (formData.get("metaDescription") as string) || null,
+      adminWhatsapp: (formData.get("adminWhatsapp") as string) || null,
+      emailOrderTemplate,
+      emailVerifyTemplate,
     },
     create: {
       id: "singleton",

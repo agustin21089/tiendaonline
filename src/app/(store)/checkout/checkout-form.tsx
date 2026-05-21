@@ -1,13 +1,13 @@
 "use client";
 
-import { useActionState, useEffect, useState, useCallback } from "react";
+import { useActionState, useEffect, useState, useCallback, useRef } from "react";
 import { useFormStatus } from "react-dom";
-import { createOrder, validateCoupon, getShippingOptions, type CheckoutState } from "./actions";
+import { createOrder, validateCoupon, getShippingOptions, reserveStock, type CheckoutState } from "./actions";
 import { useCart } from "@/context/cart-context";
 import { formatPrice } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
-import { ShoppingBag, Loader2, Tag, Truck, CheckCircle2, XCircle } from "lucide-react";
+import { ShoppingBag, Loader2, Tag, Truck, CheckCircle2, XCircle, AlertTriangle } from "lucide-react";
 import type { ShippingOption } from "@/lib/shipping";
 
 function SubmitButton() {
@@ -71,6 +71,11 @@ export function CheckoutForm({ defaultValues }: { defaultValues?: DefaultValues 
   const [couponError, setCouponError] = useState<string | null>(null);
   const [couponLoading, setCouponLoading] = useState(false);
 
+  // Stock reservation
+  const reservationId = useRef<string>("");
+  const [stockWarning, setStockWarning] = useState<string | null>(null);
+  const reservedRef = useRef(false);
+
   // Shipping state
   const [zipValue, setZipValue] = useState(defaultValues?.zip ?? "");
   const [shippingOptions, setShippingOptions] = useState<ShippingOption[]>([]);
@@ -84,6 +89,29 @@ export function CheckoutForm({ defaultValues }: { defaultValues?: DefaultValues 
       window.location.href = state.mpUrl;
     }
   }, [state.mpUrl]);
+
+  // Reserve stock when checkout loads (once, after cart items are available)
+  useEffect(() => {
+    if (reservedRef.current || items.length === 0) return;
+    reservedRef.current = true;
+
+    // Generate a stable session ID for this checkout flow (stored in sessionStorage)
+    let sid = sessionStorage.getItem("checkoutSession");
+    if (!sid) {
+      sid = Date.now().toString(36) + Math.random().toString(36).slice(2);
+      sessionStorage.setItem("checkoutSession", sid);
+    }
+    reservationId.current = sid;
+
+    reserveStock(
+      items.map((i) => ({ productId: i.productId, quantity: i.quantity })),
+      sid
+    ).then((result) => {
+      if (!result.ok) {
+        setStockWarning(result.error);
+      }
+    }).catch(() => {/* reservation is best-effort */});
+  }, [items]);
 
   async function applyCoupon() {
     if (!couponInput.trim()) return;
@@ -169,6 +197,18 @@ export function CheckoutForm({ defaultValues }: { defaultValues?: DefaultValues 
           <input type="hidden" name="shippingOptionId" value={selectedShipping.id} readOnly />
           <input type="hidden" name="shippingPrice" value={selectedShipping.price} readOnly />
         </>
+      )}
+      <input type="hidden" name="reservationSessionId" value={reservationId.current} readOnly />
+
+      {/* Stock warning */}
+      {stockWarning && (
+        <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-4 flex items-start gap-3">
+          <AlertTriangle className="w-5 h-5 text-yellow-600 shrink-0 mt-0.5" />
+          <div>
+            <p className="text-sm font-medium text-yellow-800">Stock insuficiente</p>
+            <p className="text-sm text-yellow-700 mt-0.5">{stockWarning}. Modificá tu carrito antes de continuar.</p>
+          </div>
+        </div>
       )}
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
