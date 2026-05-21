@@ -14,6 +14,15 @@ function LoginForm() {
   const searchParams = useSearchParams();
   const callbackUrl = searchParams.get("callbackUrl") ?? "";
   const verificado = searchParams.get("verificado");
+  const oauthError = searchParams.get("error");
+
+  const OAUTH_ERROR_MESSAGES: Record<string, string> = {
+    OAuthAccountNotLinked:
+      "Ya existe una cuenta con ese email. Ingresá con tu contraseña para vincular Google.",
+    OAuthCallbackError: "Error al conectar con Google. Intentá de nuevo.",
+    OAuthSignin: "No se pudo iniciar sesión con Google. Intentá de nuevo.",
+    Callback: "Error en el callback de Google. Intentá de nuevo.",
+  };
 
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
@@ -85,6 +94,12 @@ function LoginForm() {
             </Link>
           </p>
         </div>
+
+        {oauthError && (
+          <div className="bg-red-50 border border-red-200 text-red-700 text-sm rounded-xl p-3 mb-4 text-center">
+            {OAUTH_ERROR_MESSAGES[oauthError] ?? "Error al iniciar sesión. Intentá de nuevo."}
+          </div>
+        )}
 
         {verificado && (
           <div className="bg-green-50 border border-green-200 text-green-700 text-sm rounded-xl p-3 mb-4 text-center">
