@@ -1,13 +1,14 @@
 "use client";
 
-import { useActionState, useEffect } from "react";
+import { useActionState, useEffect, useState, useCallback } from "react";
 import { useFormStatus } from "react-dom";
-import { createOrder, type CheckoutState } from "./actions";
+import { createOrder, validateCoupon, getShippingOptions, type CheckoutState } from "./actions";
 import { useCart } from "@/context/cart-context";
 import { formatPrice } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
-import { ShoppingBag, Loader2 } from "lucide-react";
+import { ShoppingBag, Loader2, Tag, Truck, CheckCircle2, XCircle } from "lucide-react";
+import type { ShippingOption } from "@/lib/shipping";
 
 function SubmitButton() {
   const { pending } = useFormStatus();
@@ -64,11 +65,73 @@ export function CheckoutForm({ defaultValues }: { defaultValues?: DefaultValues 
   const { items, subtotal } = useCart();
   const [state, formAction] = useActionState(createOrder, initialState);
 
+  // Coupon state
+  const [couponInput, setCouponInput] = useState("");
+  const [couponApplied, setCouponApplied] = useState<{ code: string; discount: number; label: string } | null>(null);
+  const [couponError, setCouponError] = useState<string | null>(null);
+  const [couponLoading, setCouponLoading] = useState(false);
+
+  // Shipping state
+  const [zipValue, setZipValue] = useState(defaultValues?.zip ?? "");
+  const [shippingOptions, setShippingOptions] = useState<ShippingOption[]>([]);
+  const [shippingLoading, setShippingLoading] = useState(false);
+  const [shippingError, setShippingError] = useState<string | null>(null);
+  const [selectedShipping, setSelectedShipping] = useState<ShippingOption | null>(null);
+  const [shippingFree, setShippingFree] = useState(false);
+
   useEffect(() => {
     if (state.mpUrl) {
       window.location.href = state.mpUrl;
     }
   }, [state.mpUrl]);
+
+  async function applyCoupon() {
+    if (!couponInput.trim()) return;
+    setCouponLoading(true);
+    setCouponError(null);
+    try {
+      const result = await validateCoupon(couponInput, subtotal);
+      if (result.ok) {
+        setCouponApplied({ code: couponInput.toUpperCase(), discount: result.discount, label: result.label });
+        setCouponError(null);
+      } else {
+        setCouponError(result.error);
+        setCouponApplied(null);
+      }
+    } finally {
+      setCouponLoading(false);
+    }
+  }
+
+  function removeCoupon() {
+    setCouponApplied(null);
+    setCouponInput("");
+    setCouponError(null);
+  }
+
+  const fetchShipping = useCallback(async (zip: string) => {
+    if (zip.length < 4) return;
+    setShippingLoading(true);
+    setShippingError(null);
+    setShippingOptions([]);
+    setSelectedShipping(null);
+    try {
+      const result = await getShippingOptions(zip, subtotal);
+      if (result.ok) {
+        setShippingOptions(result.options);
+        setShippingFree(result.free);
+        setSelectedShipping(result.options[0] ?? null);
+      } else {
+        setShippingError(result.error);
+      }
+    } finally {
+      setShippingLoading(false);
+    }
+  }, [subtotal]);
+
+  const discount = couponApplied?.discount ?? 0;
+  const shippingCost = selectedShipping ? selectedShipping.price : 0;
+  const total = Math.max(0, subtotal - discount) + shippingCost;
 
   if (items.length === 0) {
     return (
@@ -98,6 +161,15 @@ export function CheckoutForm({ defaultValues }: { defaultValues?: DefaultValues 
   return (
     <form action={formAction}>
       <input type="hidden" name="cartItems" value={cartPayload} readOnly />
+      {couponApplied && (
+        <input type="hidden" name="couponCode" value={couponApplied.code} readOnly />
+      )}
+      {selectedShipping && (
+        <>
+          <input type="hidden" name="shippingOptionId" value={selectedShipping.id} readOnly />
+          <input type="hidden" name="shippingPrice" value={selectedShipping.price} readOnly />
+        </>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* Left column: fields */}
@@ -190,10 +262,73 @@ export function CheckoutForm({ defaultValues }: { defaultValues?: DefaultValues 
                   required
                   className={inputClass}
                   placeholder="1043"
-                  defaultValue={defaultValues?.zip ?? ""}
+                  value={zipValue}
+                  onChange={(e) => setZipValue(e.target.value)}
+                  onBlur={(e) => fetchShipping(e.target.value)}
                 />
               </div>
             </div>
+
+            {/* Shipping options — shown after zip is entered */}
+            {(shippingLoading || shippingOptions.length > 0 || shippingError) && (
+              <div className="mt-5 pt-5 border-t border-arena-100">
+                <div className="flex items-center gap-2 mb-3">
+                  <Truck className="w-4 h-4 text-arena-500" />
+                  <h3 className="text-sm font-semibold text-warm-800">Opciones de envío — Andreani</h3>
+                  {shippingFree && (
+                    <span className="text-xs font-bold text-green-600 bg-green-50 px-2 py-0.5 rounded-full">
+                      ¡Envío gratis disponible!
+                    </span>
+                  )}
+                </div>
+
+                {shippingLoading && (
+                  <div className="flex items-center gap-2 text-sm text-warm-400">
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    Calculando tarifas...
+                  </div>
+                )}
+
+                {shippingError && (
+                  <p className="text-sm text-red-600">{shippingError}</p>
+                )}
+
+                {shippingOptions.length > 0 && (
+                  <div className="space-y-2">
+                    {shippingOptions.map((opt) => (
+                      <label
+                        key={opt.id}
+                        className="flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition-colors
+                          border-arena-200 hover:border-arena-400
+                          has-[:checked]:border-arena-500 has-[:checked]:bg-arena-50"
+                      >
+                        <input
+                          type="radio"
+                          name="shippingSelect"
+                          value={opt.id}
+                          checked={selectedShipping?.id === opt.id}
+                          onChange={() => setSelectedShipping(opt)}
+                          className="accent-arena-600"
+                        />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium text-warm-800">{opt.name}</p>
+                          <p className="text-xs text-warm-400">
+                            {opt.zone} · {opt.days}
+                          </p>
+                        </div>
+                        <span className="text-sm font-semibold text-warm-900 shrink-0">
+                          {opt.price === 0 ? (
+                            <span className="text-green-600">Gratis</span>
+                          ) : (
+                            formatPrice(opt.price)
+                          )}
+                        </span>
+                      </label>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
           </section>
 
           {/* Método de pago */}
@@ -272,7 +407,9 @@ export function CheckoutForm({ defaultValues }: { defaultValues?: DefaultValues 
             <h2 className="font-display text-lg font-semibold text-warm-900 mb-5">
               Resumen
             </h2>
-            <div className="space-y-3 text-sm mb-6">
+
+            {/* Items */}
+            <div className="space-y-2 text-sm mb-5">
               {items.map((item) => (
                 <div key={item.productId} className="flex justify-between text-warm-600">
                   <span className="truncate flex-1 mr-2">
@@ -281,16 +418,104 @@ export function CheckoutForm({ defaultValues }: { defaultValues?: DefaultValues 
                   <span className="shrink-0">{formatPrice(item.price * item.quantity)}</span>
                 </div>
               ))}
-              <div className="border-t border-arena-100 pt-3 flex justify-between font-semibold text-warm-900 text-base">
-                <span>Total</span>
+            </div>
+
+            {/* Coupon input */}
+            <div className="border-t border-arena-100 pt-4 mb-4">
+              <p className="text-xs font-semibold text-warm-600 uppercase tracking-wide mb-2 flex items-center gap-1.5">
+                <Tag className="w-3.5 h-3.5" />
+                Cupón de descuento
+              </p>
+
+              {couponApplied ? (
+                <div className="flex items-center justify-between bg-green-50 border border-green-200 rounded-lg px-3 py-2">
+                  <div className="flex items-center gap-2">
+                    <CheckCircle2 className="w-4 h-4 text-green-500 shrink-0" />
+                    <div>
+                      <p className="text-xs font-bold text-green-700">{couponApplied.code}</p>
+                      <p className="text-xs text-green-600">{couponApplied.label}</p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={removeCoupon}
+                    className="text-warm-400 hover:text-red-500 transition-colors"
+                    title="Quitar cupón"
+                  >
+                    <XCircle className="w-4 h-4" />
+                  </button>
+                </div>
+              ) : (
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={couponInput}
+                    onChange={(e) => setCouponInput(e.target.value.toUpperCase())}
+                    onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), applyCoupon())}
+                    placeholder="CÓDIGO"
+                    className="flex-1 h-9 px-3 rounded-lg border border-arena-200 text-sm font-mono uppercase bg-white focus:outline-none focus:ring-2 focus:ring-arena-400 placeholder:text-warm-300"
+                    maxLength={30}
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={applyCoupon}
+                    disabled={couponLoading || !couponInput.trim()}
+                    className="shrink-0"
+                  >
+                    {couponLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : "Aplicar"}
+                  </Button>
+                </div>
+              )}
+
+              {couponError && (
+                <p className="text-xs text-red-600 mt-1.5 flex items-center gap-1">
+                  <XCircle className="w-3.5 h-3.5 shrink-0" />
+                  {couponError}
+                </p>
+              )}
+            </div>
+
+            {/* Totals */}
+            <div className="border-t border-arena-100 pt-4 space-y-2 text-sm">
+              <div className="flex justify-between text-warm-600">
+                <span>Subtotal</span>
                 <span>{formatPrice(subtotal)}</span>
               </div>
-              <p className="text-xs text-warm-400">Envío a coordinar con el vendedor</p>
+
+              {discount > 0 && (
+                <div className="flex justify-between text-green-600 font-medium">
+                  <span>Descuento ({couponApplied?.code})</span>
+                  <span>-{formatPrice(discount)}</span>
+                </div>
+              )}
+
+              <div className="flex justify-between text-warm-600">
+                <span>Envío</span>
+                {selectedShipping ? (
+                  shippingCost === 0 ? (
+                    <span className="text-green-600 font-medium">Gratis</span>
+                  ) : (
+                    <span>{formatPrice(shippingCost)}</span>
+                  )
+                ) : (
+                  <span className="text-warm-300 text-xs italic">Ingresá tu CP</span>
+                )}
+              </div>
+
+              <div className="border-t border-arena-100 pt-2 flex justify-between font-semibold text-warm-900 text-base">
+                <span>Total</span>
+                <span>{formatPrice(total)}</span>
+              </div>
             </div>
-            <SubmitButton />
-            <Button variant="outline" className="w-full mt-2" size="sm" asChild>
-              <Link href="/carrito">← Volver al carrito</Link>
-            </Button>
+
+            <div className="mt-5 space-y-2">
+              <SubmitButton />
+              <Button variant="outline" className="w-full" size="sm" asChild>
+                <Link href="/carrito">← Volver al carrito</Link>
+              </Button>
+            </div>
           </div>
         </div>
       </div>
