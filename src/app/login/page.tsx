@@ -27,6 +27,24 @@ function LoginForm() {
     const result = await signIn("credentials", { email, password, redirect: false });
 
     if (result?.error) {
+      // Check if the user exists but hasn't verified their email
+      try {
+        const check = await fetch(`/api/auth/check-unverified?email=${encodeURIComponent(email)}`);
+        const { unverified } = await check.json();
+        if (unverified) {
+          toast.error("Verificá tu email antes de ingresar.", {
+            action: {
+              label: "Verificar ahora",
+              onClick: () => router.push(`/verificar?email=${encodeURIComponent(email)}`),
+            },
+            duration: 6000,
+          });
+          setLoading(false);
+          return;
+        }
+      } catch {
+        // ignore check errors
+      }
       toast.error("Email o contraseña incorrectos");
       setLoading(false);
       return;
@@ -110,15 +128,22 @@ function LoginForm() {
             required
             placeholder="juan@ejemplo.com"
           />
-          <Input
-            label="Contraseña"
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            autoComplete="current-password"
-            required
-            placeholder="••••••••"
-          />
+          <div>
+            <Input
+              label="Contraseña"
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              autoComplete="current-password"
+              required
+              placeholder="••••••••"
+            />
+            <div className="text-right mt-1">
+              <a href="/recuperar" className="text-xs text-arena-600 hover:underline">
+                ¿Olvidaste tu contraseña?
+              </a>
+            </div>
+          </div>
           <Button type="submit" loading={loading} className="w-full">
             Ingresar
           </Button>

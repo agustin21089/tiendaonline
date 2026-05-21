@@ -50,7 +50,17 @@ const PAYMENT_OPTIONS = [
   },
 ];
 
-export function CheckoutForm() {
+type DefaultValues = {
+  name?: string | null | undefined;
+  email?: string | null | undefined;
+  phone?: string | null | undefined;
+  address?: string | null | undefined;
+  city?: string | null | undefined;
+  state?: string | null | undefined;
+  zip?: string | null | undefined;
+} | null;
+
+export function CheckoutForm({ defaultValues }: { defaultValues?: DefaultValues }) {
   const { items, subtotal } = useCart();
   const [state, formAction] = useActionState(createOrder, initialState);
 
@@ -106,6 +116,7 @@ export function CheckoutForm() {
                   required
                   className={inputClass}
                   placeholder="Juan García"
+                  defaultValue={defaultValues?.name ?? ""}
                 />
               </div>
               <div>
@@ -116,6 +127,7 @@ export function CheckoutForm() {
                   required
                   className={inputClass}
                   placeholder="+54 11 1234-5678"
+                  defaultValue={defaultValues?.phone ?? ""}
                 />
               </div>
               <div>
@@ -125,6 +137,7 @@ export function CheckoutForm() {
                   name="email"
                   className={inputClass}
                   placeholder="juan@ejemplo.com"
+                  defaultValue={defaultValues?.email ?? ""}
                 />
               </div>
             </div>
@@ -144,6 +157,7 @@ export function CheckoutForm() {
                   required
                   className={inputClass}
                   placeholder="Av. Corrientes 1234, Piso 3 Dpto B"
+                  defaultValue={defaultValues?.address ?? ""}
                 />
               </div>
               <div>
@@ -154,6 +168,7 @@ export function CheckoutForm() {
                   required
                   className={inputClass}
                   placeholder="Buenos Aires"
+                  defaultValue={defaultValues?.city ?? ""}
                 />
               </div>
               <div>
@@ -164,6 +179,7 @@ export function CheckoutForm() {
                   required
                   className={inputClass}
                   placeholder="Buenos Aires"
+                  defaultValue={defaultValues?.state ?? ""}
                 />
               </div>
               <div>
@@ -174,6 +190,7 @@ export function CheckoutForm() {
                   required
                   className={inputClass}
                   placeholder="1043"
+                  defaultValue={defaultValues?.zip ?? ""}
                 />
               </div>
             </div>

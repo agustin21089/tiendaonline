@@ -3,6 +3,8 @@
 import { prisma } from "@/lib/prisma";
 import { redirect } from "next/navigation";
 import { mpClient, Preference } from "@/lib/mp";
+import { auth } from "@/lib/auth";
+import { sendOrderConfirmationEmail } from "@/lib/email";
 
 export type CartItemInput = {
   productId: string;
@@ -21,6 +23,9 @@ export async function createOrder(
   prevState: CheckoutState,
   formData: FormData
 ): Promise<CheckoutState> {
+  const session = await auth();
+  const userId = session?.user?.id ?? null;
+
   const name = formData.get("name") as string;
   const phone = formData.get("phone") as string;
   const email = formData.get("email") as string;
@@ -71,10 +76,11 @@ export async function createOrder(
 
   const subtotal = validItems.reduce((sum, i) => sum + (priceMap.get(i.productId) ?? i.price) * i.quantity, 0);
 
-  let orderId: string;
+  let order: { id: string; number: number };
   try {
-    const order = await prisma.order.create({
+    order = await prisma.order.create({
       data: {
+        userId,
         status: "PENDING",
         paymentStatus: "PENDING",
         paymentMethod,
@@ -97,11 +103,20 @@ export async function createOrder(
           })),
         },
       },
+      select: { id: true, number: true },
     });
-    orderId = order.id;
   } catch (e) {
     console.error("Error creating order:", e);
     return { error: "Error al crear el pedido. Por favor intentá de nuevo." };
+  }
+
+  const orderId = order.id;
+
+  // Send order confirmation email (non-blocking)
+  if (email) {
+    sendOrderConfirmationEmail(email, name, order.number, subtotal).catch((e) =>
+      console.error("Error sending order confirmation email:", e)
+    );
   }
 
   if (paymentMethod === "mercadopago") {
