@@ -28,10 +28,8 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="es" className={`${cormorant.variable} ${inter.variable} h-full`} suppressHydrationWarning>
-      <head>
-        <ThemeStyle />
-      </head>
       <body className="min-h-full flex flex-col antialiased">
+        <ThemeStyle />
         <Providers>
           {children}
           <Toaster position="top-right" richColors />
