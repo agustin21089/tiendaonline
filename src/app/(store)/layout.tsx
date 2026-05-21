@@ -1,6 +1,7 @@
 import { CartProvider } from "@/context/cart-context";
 import { StoreHeader } from "@/components/store/header";
 import { StoreFooter } from "@/components/store/footer";
+import { GoogleOneTap } from "@/components/store/google-one-tap";
 import { prisma } from "@/lib/prisma";
 
 async function getSiteData() {
@@ -19,8 +20,11 @@ export default async function StoreLayout({ children }: { children: React.ReactN
   const { settings, categories } = await getSiteData();
   const storeName = settings?.storeName ?? "Mi Tienda";
 
+  const googleClientId = process.env.GOOGLE_CLIENT_ID ?? null;
+
   return (
     <CartProvider>
+      {googleClientId && <GoogleOneTap clientId={googleClientId} />}
       <StoreHeader storeName={storeName} categories={categories} />
       <main className="flex-1">{children}</main>
       <StoreFooter
