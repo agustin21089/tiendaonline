@@ -14,6 +14,7 @@ import {
   Image,
   Settings,
   Store,
+  BarChart3,
 } from "lucide-react";
 
 const navItems = [
@@ -25,6 +26,7 @@ const navItems = [
   { href: "/admin/envios", label: "Envíos", icon: Truck },
   { href: "/admin/cupones", label: "Cupones", icon: Ticket },
   { href: "/admin/banners", label: "Banners", icon: Image },
+  { href: "/admin/reportes", label: "Reportes", icon: BarChart3 },
   { href: "/admin/configuracion", label: "Configuración", icon: Settings },
 ];
 
