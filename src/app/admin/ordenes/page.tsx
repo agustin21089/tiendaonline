@@ -2,6 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { formatPrice } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { OrderActions } from "./order-actions";
+import Link from "next/link";
 
 const STATUS_LABELS: Record<string, string> = {
   PENDING: "Pendiente",
@@ -140,7 +141,15 @@ export default async function OrdenesPage({ searchParams }: Props) {
                     })}
                   </td>
                   <td className="px-4 py-3">
-                    <OrderActions order={order} />
+                    <div className="flex items-center gap-2">
+                      <Link
+                        href={`/admin/ordenes/${order.id}`}
+                        className="px-2.5 py-1 text-xs rounded-lg border border-arena-200 text-warm-600 hover:bg-arena-50 transition-colors"
+                      >
+                        Ver
+                      </Link>
+                      <OrderActions order={order} />
+                    </div>
                   </td>
                 </tr>
               ))

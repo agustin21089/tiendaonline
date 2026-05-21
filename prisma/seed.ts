@@ -73,6 +73,22 @@ async function main() {
   ]);
   console.log("✅ Subcategorías creadas");
 
+  // Categorías con imágenes de ejemplo
+  const categoryImageMap: Record<string, string> = {
+    living: "https://picsum.photos/seed/living-room/600/600",
+    dormitorio: "https://picsum.photos/seed/bedroom-deco/600/600",
+    cocina: "https://picsum.photos/seed/kitchen-deco/600/600",
+    exterior: "https://picsum.photos/seed/outdoor-deco/600/600",
+  };
+  for (const cat of categorias) {
+    if (categoryImageMap[cat.slug]) {
+      await prisma.category.update({
+        where: { id: cat.id },
+        data: { image: categoryImageMap[cat.slug] },
+      });
+    }
+  }
+
   // Productos de ejemplo
   const productos = [
     {
@@ -84,6 +100,10 @@ async function main() {
       stock: 12,
       featured: true,
       categoryId: subCategorias[0].id,
+      images: [
+        { url: "https://picsum.photos/seed/linen-cushion/800/800", alt: "Almohadón lino natural" },
+        { url: "https://picsum.photos/seed/linen-detail/800/800", alt: "Detalle almohadón" },
+      ],
     },
     {
       name: "Jarrón cerámico arena",
@@ -93,6 +113,9 @@ async function main() {
       stock: 8,
       featured: true,
       categoryId: subCategorias[1].id,
+      images: [
+        { url: "https://picsum.photos/seed/ceramic-vase/800/800", alt: "Jarrón cerámico arena" },
+      ],
     },
     {
       name: "Set de 3 jarrones terracota",
@@ -103,6 +126,10 @@ async function main() {
       stock: 5,
       featured: true,
       categoryId: subCategorias[1].id,
+      images: [
+        { url: "https://picsum.photos/seed/terracotta-set/800/800", alt: "Set jarrones terracota" },
+        { url: "https://picsum.photos/seed/terracotta-detail/800/800", alt: "Detalle terracota" },
+      ],
     },
     {
       name: "Cuadro abstracto beige",
@@ -112,6 +139,9 @@ async function main() {
       stock: 3,
       featured: false,
       categoryId: subCategorias[2].id,
+      images: [
+        { url: "https://picsum.photos/seed/abstract-art/800/800", alt: "Cuadro abstracto beige" },
+      ],
     },
     {
       name: "Vela de soja aroma lavanda",
@@ -121,6 +151,9 @@ async function main() {
       stock: 20,
       featured: true,
       categoryId: subCategorias[3].id,
+      images: [
+        { url: "https://picsum.photos/seed/soy-candle/800/800", alt: "Vela de soja lavanda" },
+      ],
     },
     {
       name: "Almohadón terciopelo tostado",
@@ -130,15 +163,19 @@ async function main() {
       stock: 15,
       featured: false,
       categoryId: subCategorias[0].id,
+      images: [
+        { url: "https://picsum.photos/seed/velvet-cushion/800/800", alt: "Almohadón terciopelo tostado" },
+      ],
     },
   ];
 
   for (const p of productos) {
-    await prisma.product.upsert({
+    const { images, ...data } = p;
+    const product = await prisma.product.upsert({
       where: { slug: p.slug },
       update: {},
       create: {
-        ...p,
+        ...data,
         active: true,
         trackStock: true,
         sku: p.slug.toUpperCase(),
@@ -146,21 +183,27 @@ async function main() {
         comparePrice: (p as { comparePrice?: number }).comparePrice ?? null,
       },
     });
+    const hasImages = await prisma.productImage.count({ where: { productId: product.id } });
+    if (hasImages === 0) {
+      await prisma.productImage.createMany({
+        data: images.map((img, i) => ({ productId: product.id, ...img, order: i })),
+      });
+    }
   }
   console.log("✅ Productos de ejemplo creados");
 
   // Settings del sitio
   await prisma.siteSettings.upsert({
     where: { id: "singleton" },
-    update: {},
+    update: { storeName: "Arena Deco House", metaTitle: "Arena Deco House — Decoración del hogar" },
     create: {
       id: "singleton",
-      storeName: "Merlina Home Deco",
-      email: "hola@merlinahome.com.ar",
+      storeName: "Arena Deco House",
+      email: "hola@arenadeco.com.ar",
       whatsapp: "5491123456789",
-      instagram: "merlinahome",
+      instagram: "arenadeco",
       freeShippingMin: 50000,
-      metaTitle: "Merlina Home Deco — Decoración del hogar",
+      metaTitle: "Arena Deco House — Decoración del hogar",
       metaDescription: "Tu tienda de decoración con estilo. Jarrones, almohadones, cuadros y más.",
     },
   });
