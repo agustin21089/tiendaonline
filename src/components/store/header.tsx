@@ -2,6 +2,7 @@
 
 import { useCart } from "@/context/cart-context";
 import { CartDrawer } from "./cart-drawer";
+import { UserMenu } from "./user-menu";
 import Link from "next/link";
 import { ShoppingBag, Menu, X, Search } from "lucide-react";
 import { useState } from "react";
@@ -63,6 +64,8 @@ export function StoreHeader({ storeName, categories }: Props) {
                   </span>
                 )}
               </button>
+
+              <UserMenu />
 
               {/* Mobile menu button */}
               <button

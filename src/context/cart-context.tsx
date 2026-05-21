@@ -12,6 +12,8 @@ export type CartItem = {
   stock: number;
 };
 
+type FreshData = { price: number; stock: number; active: boolean };
+
 type CartContextValue = {
   items: CartItem[];
   count: number;
@@ -34,10 +36,37 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   const [hydrated, setHydrated] = useState(false);
 
   useEffect(() => {
+    let parsed: CartItem[] = [];
     try {
       const stored = localStorage.getItem(STORAGE_KEY);
-      if (stored) setItems(JSON.parse(stored));
+      if (stored) parsed = JSON.parse(stored);
     } catch {}
+
+    if (parsed.length > 0) {
+      setItems(parsed);
+      // Refresh prices and stock from the DB in the background
+      const ids = parsed.map((i) => i.productId).join(",");
+      fetch(`/api/cart/prices?ids=${ids}`, { cache: "no-store" })
+        .then((r) => r.json())
+        .then((fresh: Record<string, FreshData>) => {
+          setItems((prev) =>
+            prev
+              .filter((item) => fresh[item.productId]?.active !== false)
+              .map((item) => {
+                const data = fresh[item.productId];
+                if (!data) return item;
+                return {
+                  ...item,
+                  price: data.price,
+                  stock: data.stock,
+                  quantity: Math.min(item.quantity, data.stock),
+                };
+              })
+          );
+        })
+        .catch(() => {});
+    }
+
     setHydrated(true);
   }, []);
 
@@ -51,10 +80,16 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       const qty = incoming.quantity ?? 1;
       const existing = prev.find((i) => i.productId === incoming.productId);
       if (existing) {
+        // Always update price and stock from the incoming data (fresh from DB)
         return prev.map((i) =>
           i.productId === incoming.productId
-            ? { ...i, quantity: Math.min(i.quantity + qty, i.stock) }
-            : i,
+            ? {
+                ...i,
+                price: incoming.price,
+                stock: incoming.stock,
+                quantity: Math.min(i.quantity + qty, incoming.stock),
+              }
+            : i
         );
       }
       return [...prev, { ...incoming, quantity: qty }];
@@ -73,10 +108,8 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     }
     setItems((prev) =>
       prev.map((i) =>
-        i.productId === productId
-          ? { ...i, quantity: Math.min(quantity, i.stock) }
-          : i,
-      ),
+        i.productId === productId ? { ...i, quantity: Math.min(quantity, i.stock) } : i
+      )
     );
   }, []);
 
