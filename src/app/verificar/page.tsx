@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, Suspense } from "react";
 import { signIn } from "next-auth/react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { verifyEmail, resendVerification } from "@/app/registro/actions";
@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Store, CheckCircle2, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
-export default function VerificarPage() {
+function VerificarContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const email = searchParams.get("email") ?? "";
@@ -151,5 +151,17 @@ export default function VerificarPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function VerificarPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-arena-50 flex items-center justify-center">
+        <div className="w-8 h-8 border-2 border-arena-400 border-t-transparent rounded-full animate-spin" />
+      </div>
+    }>
+      <VerificarContent />
+    </Suspense>
   );
 }
