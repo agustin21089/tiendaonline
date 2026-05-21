@@ -5,6 +5,12 @@ import { useFormStatus } from "react-dom";
 import { Button } from "@/components/ui/button";
 import { Loader2, Eye, EyeOff, RotateCcw } from "lucide-react";
 import type { SiteSettings } from "@/generated/prisma/client";
+
+// Serialised version safe to pass from Server → Client Component.
+// `freeShippingMin` is converted from Prisma Decimal to plain number | null.
+type SerializedSettings = Omit<SiteSettings, "freeShippingMin"> & {
+  freeShippingMin: number | null;
+};
 import { DEFAULT_ORDER_TEMPLATE, DEFAULT_VERIFY_TEMPLATE } from "@/lib/email-templates";
 import { AppearanceSection } from "./appearance-section";
 
@@ -122,7 +128,7 @@ export function SettingsForm({
   settings,
   action,
 }: {
-  settings: SiteSettings | null;
+  settings: SerializedSettings | null;
   action: Action;
 }) {
   const [state, formAction] = useActionState(action, {});

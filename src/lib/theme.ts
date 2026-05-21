@@ -20,12 +20,15 @@ function clamp(n: number, lo: number, hi: number) {
   return Math.min(hi, Math.max(lo, n));
 }
 
-/** hex (#RRGGBB) → [h°, s%, l%] */
+/** hex (#RRGGBB or RRGGBB) → [h°, s%, l%]. Returns [0, 0, 50] for invalid input. */
 function hexToHsl(hex: string): [number, number, number] {
   const clean = hex.replace("#", "");
   const r = parseInt(clean.slice(0, 2), 16) / 255;
   const g = parseInt(clean.slice(2, 4), 16) / 255;
   const b = parseInt(clean.slice(4, 6), 16) / 255;
+
+  // Guard against NaN (e.g. if hex string was malformed)
+  if (isNaN(r) || isNaN(g) || isNaN(b)) return [0, 0, 50];
 
   const max = Math.max(r, g, b);
   const min = Math.min(r, g, b);
@@ -59,8 +62,10 @@ function hslToHex(h: number, s: number, l: number): string {
     return p;
   };
 
+  // Clamp to [0, 255] before rounding — floating-point drift can push
+  // a channel above 255.5, producing 256 → "100" (3 chars) → invalid hex.
   const toHex = (x: number) =>
-    Math.round(x * 255).toString(16).padStart(2, "0");
+    Math.round(Math.min(255, Math.max(0, x * 255))).toString(16).padStart(2, "0");
 
   return `#${toHex(hue2rgb(p, q, h + 1 / 3))}${toHex(hue2rgb(p, q, h))}${toHex(hue2rgb(p, q, h - 1 / 3))}`;
 }
@@ -76,9 +81,16 @@ type Scale = Record<string, string>;
 /**
  * Returns a Record of { "50": "#…", "100": "#…", …, "900": "#…" }
  * given a base hex color (treated as the 500-weight value).
+ * Falls back to neutral gray if the input is not a valid 6-digit hex.
  */
 export function generateScale(baseHex: string): Scale {
-  const [h, s, l] = hexToHsl(baseHex);
+  // Normalise: accept with or without #, reject anything else
+  const normalised = (baseHex ?? "").trim();
+  const safe = /^#?[0-9A-Fa-f]{6}$/.test(normalised)
+    ? (normalised.startsWith("#") ? normalised : `#${normalised}`)
+    : "#808080";
+
+  const [h, s, l] = hexToHsl(safe);
 
   // Lighter shades: blend toward white, gently reducing saturation
   function lighter(t: number) {
@@ -104,7 +116,7 @@ export function generateScale(baseHex: string): Scale {
     "200": lighter(0.65),
     "300": lighter(0.46),
     "400": lighter(0.24),
-    "500": baseHex,
+    "500": safe,
     "600": darker(0.22),
     "700": darker(0.44),
     "800": darker(0.63),
